@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>veil — stealth browser remote for AI agents</title>
+  <meta name="description" content="veil is a headless browser CLI for AI agents. Post, like, reply, quote on X and any website via clean JSON commands." />
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #1f1f1f;
+      --text: #e8e8e8;
+      --muted: #666;
+      --accent: #e8e8e8;
+      --green: #4ade80;
+      --mono: 'Berkeley Mono', 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ─────────────────────────────────────────────────────────── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .nav-logo {
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--muted); }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: color 0.15s;
+    }
+    nav a:hover { color: var(--text); }
+    .nav-links { display: flex; gap: 28px; align-items: center; }
+    .nav-badge {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    /* ── HERO ────────────────────────────────────────────────────────── */
+    .hero {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 120px 40px 80px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      font-family: var(--mono);
+      padding: 5px 14px;
+      border-radius: 100px;
+      margin-bottom: 36px;
+      letter-spacing: 0.5px;
+    }
+    .hero-badge .dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    h1 {
+      font-size: clamp(48px, 8vw, 88px);
+      font-weight: 800;
+      letter-spacing: -3px;
+      line-height: 1.0;
+      margin-bottom: 28px;
+      color: #fff;
+    }
+    h1 .dim { color: #333; }
+    .hero-sub {
+      font-size: 20px;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 52px;
+      line-height: 1.6;
+    }
+    .hero-sub strong { color: #aaa; font-weight: 500; }
+
+    /* ── TERMINAL ────────────────────────────────────────────────────── */
+    .terminal-wrap {
+      max-width: 640px;
+      margin: 0 auto 52px;
+      text-align: left;
+    }
+    .terminal {
+      background: #0d0d0d;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px #111, 0 32px 64px rgba(0,0,0,0.6);
+    }
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 18px;
+      background: #141414;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .dot-red   { width:12px; height:12px; border-radius:50%; background:#ff5f57; }
+    .dot-yellow{ width:12px; height:12px; border-radius:50%; background:#febc2e; }
+    .dot-green { width:12px; height:12px; border-radius:50%; background:#28c840; }
+    .terminal-title {
+      margin-left: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #444;
+    }
+    .terminal-body {
+      padding: 24px 24px;
+      font-family: var(--mono);
+      font-size: 13.5px;
+      line-height: 1.8;
+    }
+    .line { display: block; }
+    .prompt { color: #444; user-select: none; }
+    .cmd { color: #e8e8e8; }
+    .out { color: #3d7a4f; }
+    .cmt { color: #2e2e2e; }
+    .hl  { color: #7dd3fc; }
+
+    /* ── INSTALL ─────────────────────────────────────────────────────── */
+    .install-strip {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .install-cmd {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      position: relative;
+    }
+    .install-cmd:hover { border-color: #333; color: var(--text); }
+    .install-cmd .copy-hint {
+      font-size: 10px;
+      color: #333;
+      position: absolute;
+      bottom: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    /* ── SECTION ─────────────────────────────────────────────────────── */
+    section {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 80px 40px;
+    }
+    .section-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    section h2 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -1px;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+    section p {
+      color: var(--muted);
+      font-size: 16px;
+      max-width: 560px;
+      line-height: 1.7;
+    }
+
+    /* ── HOW IT WORKS ────────────────────────────────────────────────── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 48px;
+    }
+    .step {
+      background: var(--bg);
+      padding: 32px;
+    }
+    .step-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #333;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+    .step h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ccc;
+      margin-bottom: 10px;
+      letter-spacing: -0.3px;
+    }
+    .step p {
+      font-size: 14px;
+      color: #555;
+      line-height: 1.6;
+      max-width: none;
+    }
+
+    /* ── COMMANDS GRID ───────────────────────────────────────────────── */
+    .commands {
+      margin-top: 48px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .cmd-group {
+      border-bottom: 1px solid var(--border);
+    }
+    .cmd-group:last-child { border-bottom: none; }
+    .cmd-group-label {
+      padding: 12px 24px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: #333;
+      text-transform: uppercase;
+      background: #0d0d0d;
+      border-bottom: 1px solid var(--border);
+    }
+    .cmd-row {
+      display: flex;
+      align-items: baseline;
+      gap: 24px;
+      padding: 14px 24px;
+      border-bottom: 1px solid #141414;
+    }
+    .cmd-row:last-child { border-bottom: none; }
+    .cmd-code {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: #aaa;
+      white-space: nowrap;
+      min-width: 260px;
+    }
+    .cmd-desc {
+      font-size: 13px;
+      color: #444;
+    }
+
+    /* ── AGENT SECTION ───────────────────────────────────────────────── */
+    .agent-block {
+      margin-top: 48px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    @media (max-width: 640px) { .agent-block { grid-template-columns: 1fr; } }
+    .agent-col {
+      background: var(--bg);
+      padding: 32px;
+    }
+    .agent-col h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #888;
+      margin-bottom: 20px;
+      font-family: var(--mono);
+      letter-spacing: 0.5px;
+    }
+    .agent-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .agent-col li {
+      font-size: 14px;
+      color: #555;
+      display: flex;
+      gap: 10px;
+    }
+    .agent-col li::before { content: "—"; color: #2a2a2a; }
+
+    /* ── FOOTER ──────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    footer p { font-size: 13px; color: #333; }
+    footer a { color: #333; text-decoration: none; }
+    footer a:hover { color: #666; }
+    .footer-links { display: flex; gap: 24px; }
+
+    /* ── DIVIDER ─────────────────────────────────────────────────────── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">veil<span>.sh</span></a>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#commands">Commands</a>
+    <a href="https://github.com/cuttlelab/veil">GitHub</a>
+    <span class="nav-badge">v0.3.0</span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">
+    <span class="dot"></span>
+    npm install -g veil-browser
+  </div>
+
+  <h1>The browser<br/><span class="dim">for your agent.</span></h1>
+
+  <p class="hero-sub">
+    veil is a <strong>stealth headless browser</strong> built for AI agents.<br/>
+    Post, like, reply, quote. Navigate any site. Return clean JSON.
+  </p>
+
+  <div class="terminal-wrap">
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="dot-red"></div>
+        <div class="dot-yellow"></div>
+        <div class="dot-green"></div>
+        <span class="terminal-title">~ veil</span>
+      </div>
+      <div class="terminal-body">
+        <span class="line"><span class="prompt">$ </span><span class="cmd">veil login x</span></span>
+        <span class="line out">  ✓ Session saved for x (54 cookies)</span>
+        <span class="line"> </span>
+        <span class="line"><span class="prompt">$ </span><span class="cmd">veil post <span class="hl">"The quietest days are often the most important."</span></span></span>
+        <span class="line out">  {"ok":true,"action":"post"}</span>
+        <span class="line"> </span>
+        <span class="line"><span class="prompt">$ </span><span class="cmd">veil like --nth 0</span></span>
+        <span class="line out">  {"ok":true,"action":"like","confirmed":true}</span>
+        <span class="line"> </span>
+        <span class="line"><span class="prompt">$ </span><span class="cmd">veil reply <span class="hl">"Great point."</span> --nth 0</span></span>
+        <span class="line out">  {"ok":true,"action":"reply"}</span>
+        <span class="line"> </span>
+        <span class="line"><span class="prompt">$ </span><span class="cmd">veil quote <span class="hl">"Worth reading."</span> --nth 2</span></span>
+        <span class="line out">  {"ok":true,"action":"quote","quotedUrl":"https://x.com/..."}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="install-strip">
+    <div class="install-cmd" onclick="copyText('npm install -g veil-browser', this)">
+      npm install -g veil-browser
+      <span class="copy-hint">click to copy</span>
+    </div>
+    <div class="install-cmd" onclick="copyText('npx playwright install chromium', this)">
+      npx playwright install chromium
+      <span class="copy-hint">click to copy</span>
+    </div>
+  </div>
+</div>
+
+<hr/>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="section-label">How it works</div>
+  <h2>Your agent decides.<br/>veil executes.</h2>
+  <p>No LLM inside veil. No magic. Just a real browser that does exactly what it's told and reports back.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>Stealth Chromium</h3>
+      <p>Launches with flags that hide automation signals. Realistic user agent, locale, timezone, and plugin fingerprint.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>Saved sessions</h3>
+      <p>Log in once with a visible browser. Cookies are saved. Every future command restores your authenticated session automatically.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>Human timing</h3>
+      <p>Random delays between actions (400–1200ms). Click forces bypass overlay interceptors. Reads wait for elements to appear.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <h3>Clean JSON output</h3>
+      <p>Every command returns <code style="font-family:var(--mono);font-size:12px;color:#555">{ ok, ... }</code> or <code style="font-family:var(--mono);font-size:12px;color:#555">{ ok: false, error }</code>. Pipe it, parse it, chain it.</p>
+    </div>
+  </div>
+</section>
+
+<hr/>
+
+<!-- COMMANDS -->
+<section id="commands">
+  <div class="section-label">Commands</div>
+  <h2>Everything you need.</h2>
+  <p>One command per action. All output is JSON.</p>
+
+  <div class="commands">
+    <div class="cmd-group">
+      <div class="cmd-group-label">X / Social</div>
+      <div class="cmd-row"><span class="cmd-code">veil post "text"</span><span class="cmd-desc">Post a tweet</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil like --nth 0</span><span class="cmd-desc">Like Nth post in feed</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil reply "text" --nth 0</span><span class="cmd-desc">Reply to Nth post</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil repost --nth 0</span><span class="cmd-desc">Repost Nth post</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil quote "text" --nth 0</span><span class="cmd-desc">Quote Nth post with comment</span></div>
+    </div>
+    <div class="cmd-group">
+      <div class="cmd-group-label">Navigation</div>
+      <div class="cmd-row"><span class="cmd-code">veil go &lt;url&gt;</span><span class="cmd-desc">Navigate to URL</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil snapshot</span><span class="cmd-desc">Full DOM tree — understand page structure</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil read [selector]</span><span class="cmd-desc">Extract text from page or element</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil find "text"</span><span class="cmd-desc">Check if text exists on page</span></div>
+    </div>
+    <div class="cmd-group">
+      <div class="cmd-group-label">Interaction</div>
+      <div class="cmd-row"><span class="cmd-code">veil click &lt;selector&gt;</span><span class="cmd-desc">Click element (--force, --nth)</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil type &lt;selector&gt; "text"</span><span class="cmd-desc">Type into field (--clear, --delay)</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil press &lt;key&gt;</span><span class="cmd-desc">Press keyboard key</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil scroll down|up|top|bottom</span><span class="cmd-desc">Scroll page</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil wait &lt;ms&gt;</span><span class="cmd-desc">Wait N milliseconds</span></div>
+    </div>
+    <div class="cmd-group">
+      <div class="cmd-group-label">Session</div>
+      <div class="cmd-row"><span class="cmd-code">veil login &lt;platform&gt;</span><span class="cmd-desc">Save login session (headed browser)</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil open &lt;platform&gt;</span><span class="cmd-desc">Restore session and navigate to home</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil shot [file.png]</span><span class="cmd-desc">Screenshot (--full, --selector)</span></div>
+      <div class="cmd-row"><span class="cmd-code">veil eval "script"</span><span class="cmd-desc">Run JavaScript, returns result</span></div>
+    </div>
+  </div>
+</section>
+
+<hr/>
+
+<!-- FOR AGENTS -->
+<section>
+  <div class="section-label">For AI Agents</div>
+  <h2>Built for OpenClaw<br/>and any agent framework.</h2>
+  <p>veil ships with a SKILL.md that teaches your agent every command, every selector, and every platform pattern out of the box.</p>
+
+  <div class="agent-block">
+    <div class="agent-col">
+      <h3>WHAT VEIL IS</h3>
+      <ul>
+        <li>A thin CLI — no opinions, no LLM</li>
+        <li>Pure remote control of a real browser</li>
+        <li>JSON in, JSON out</li>
+        <li>Stealth by default</li>
+        <li>Persistent sessions across calls</li>
+      </ul>
+    </div>
+    <div class="agent-col">
+      <h3>WHAT YOUR AGENT DOES</h3>
+      <ul>
+        <li>Reads the page (snapshot/read)</li>
+        <li>Decides what action to take</li>
+        <li>Calls veil with precise commands</li>
+        <li>Verifies results from JSON output</li>
+        <li>Handles errors and retries</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr/>
+
+<!-- FOOTER -->
+<footer>
+  <p>Built by <a href="https://cuttle.io">CUTTLELAB</a></p>
+  <div class="footer-links">
+    <a href="https://github.com/cuttlelab/veil">GitHub</a>
+    <a href="https://www.npmjs.com/package/veil-browser">npm</a>
+    <a href="https://cuttle.io">cuttle.io</a>
+  </div>
+</footer>
+
+<script>
+  function copyText(text, el) {
+    navigator.clipboard.writeText(text).then(() => {
+      const hint = el.querySelector('.copy-hint');
+      hint.textContent = 'copied!';
+      hint.style.color = '#4ade80';
+      setTimeout(() => {
+        hint.textContent = 'click to copy';
+        hint.style.color = '';
+      }, 1500);
+    });
+  }
+</script>
+
+</body>
+</html>
