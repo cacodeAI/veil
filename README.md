@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/cuttlelab/veil/main/docs/logo.svg" alt="veil" width="80" />
+<img src="https://raw.githubusercontent.com/cuttlelab/veil/main/docs/logo.png" alt="veil" width="80" />
 
 # veil
 
