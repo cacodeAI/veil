@@ -1,0 +1,55 @@
+{
+  "name": "veil-browser",
+  "version": "0.3.0",
+  "description": "Stealth browser CLI for AI agents — bypass bot detection, persist sessions, local CAPTCHA solving, MCP server",
+  "keywords": [
+    "browser",
+    "automation",
+    "stealth",
+    "playwright",
+    "cli",
+    "captcha",
+    "ai-agent",
+    "mcp"
+  ],
+  "author": "CUTTLELAB",
+  "license": "MIT",
+  "homepage": "https://github.com/cuttlelab/veil",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cuttlelab/veil.git"
+  },
+  "bin": {
+    "veil": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "SKILL.md"
+  ],
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "ora": "^8.1.1",
+    "playwright": "^1.50.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "tesseract.js": "^5.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "module"
+}
