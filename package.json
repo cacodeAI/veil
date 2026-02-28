@@ -1,6 +1,6 @@
 {
   "name": "veil-browser",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Stealth browser CLI for AI agents — bypass bot detection, persist sessions, local CAPTCHA solving, MCP server",
   "keywords": [
     "browser",
