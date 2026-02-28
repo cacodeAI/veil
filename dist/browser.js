@@ -14,7 +14,18 @@ export async function ensureBrowser(opts = {}) {
     }
     const browser = await chromium.launch({
         headless: !opts.headed,
-        args: ['--disable-blink-features=AutomationControlled', '--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,800'],
+        args: [
+            '--disable-blink-features=AutomationControlled',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--window-size=1280,800',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-default-browser-check',
+            '--disable-default-apps',
+            '--disable-extensions',
+        ],
     });
     const context = await browser.newContext({
         viewport: { width: 1280, height: 800 },
@@ -22,12 +33,27 @@ export async function ensureBrowser(opts = {}) {
         locale: 'en-US',
         timezoneId: 'America/New_York',
         extraHTTPHeaders: { 'Accept-Language': 'en-US,en;q=0.9' },
+        ignoreHTTPSErrors: true,
     });
     await context.addInitScript(() => {
+        // Spoof all automation detection vectors
         Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        Object.defineProperty(navigator, 'chromeapp', { get: () => undefined });
         window.chrome = { runtime: {} };
         Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
         Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+        // Spoof permissions
+        window.navigator.permissions = {
+            query: () => Promise.resolve({ state: Notification.permission })
+        };
+        // Override toString on navigator to hide automation
+        const originalToString = Function.prototype.toString;
+        Function.prototype.toString = function () {
+            if (this === window.navigator.permissions.query) {
+                return 'function query() { [native code] }';
+            }
+            return originalToString.call(this);
+        };
     });
     const session = await loadSession(opts.platform ?? 'default').catch(() => null);
     if (session?.cookies?.length)
