@@ -3,10 +3,30 @@ import { promises as fs } from 'fs';
 import { readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
+import { execSync } from 'child_process';
 import { loadSession } from './session.js';
 
 const VEIL_DIR = join(homedir(), '.veil');
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+
+// Detect system Chrome installation
+function findSystemChrome(): string | null {
+  const paths = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+  
+  for (const path of paths) {
+    try {
+      execSync(`test -x "${path}"`, { stdio: 'ignore' });
+      return path;
+    } catch {}
+  }
+  return null;
+}
 
 let _browser: Browser | null = null;
 let _context: BrowserContext | null = null;
@@ -17,8 +37,11 @@ export async function ensureBrowser(opts: { headed?: boolean; platform?: string 
     return { browser: _browser, context: _context!, page: _page };
   }
 
+  const executablePath = findSystemChrome();
+  
   const browser = await chromium.launch({
     headless: !opts.headed,
+    executablePath: executablePath || undefined, // Use system Chrome if found, else fallback
     args: [
       '--disable-blink-features=AutomationControlled',
       '--no-sandbox',
