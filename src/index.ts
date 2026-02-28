@@ -15,7 +15,7 @@ program
 
 program
   .command('login <platform>')
-  .description('Open visible browser to log in and save session (x, linkedin, reddit)')
+  .description('Open visible browser to log in and save session (x, linkedin, reddit, gemini, etc.)')
   .action(async (platform) => {
     const platformUrls: Record<string, string> = {
       x: 'https://x.com/login',
@@ -23,8 +23,12 @@ program
       linkedin: 'https://www.linkedin.com/login',
       reddit: 'https://www.reddit.com/login',
       bluesky: 'https://bsky.app',
+      gemini: 'https://gemini.google.com/',
     };
-    const url = platformUrls[platform.toLowerCase()] ?? `https://${platform}`;
+    // If platform is already a full URL, use it directly
+    const url = platform.startsWith('http://') || platform.startsWith('https://') 
+      ? platform 
+      : platformUrls[platform.toLowerCase()] ?? `https://${platform}`;
     const { browser, context, page } = await ensureBrowser({ headed: true, platform });
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     console.log(chalk.cyan(`\n🔐 Log into ${platform} in the browser window.`));
