@@ -3,35 +3,81 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { ensureBrowser, closeBrowser, getPage } from './browser.js';
 import { saveSession } from './session.js';
+import { getPlatform, listPlatforms, searchPlatforms } from './platforms.js';
 const program = new Command();
 program
     .name('veil')
     .description('🕶️  OpenClaw browser remote — stealth headless browser')
-    .version('0.3.0');
+    .version('0.4.0');
+// ─── Platforms Directory ──────────────────────────────────────────────────────
+program
+    .command('platforms')
+    .description('Manage platform directory')
+    .action(() => {
+    console.log(chalk.blue('\n📚 Veil Platform Directory\n'));
+    const platforms = listPlatforms();
+    const byCategory = platforms.reduce((acc, p) => {
+        acc[p.category] = (acc[p.category] || []).concat(p);
+        return acc;
+    }, {});
+    for (const [category, proms] of Object.entries(byCategory)) {
+        console.log(chalk.cyan(`  ${category.toUpperCase()} (${proms.length})`));
+        proms.forEach(p => {
+            console.log(chalk.gray(`    • ${p.name} — ${p.aliases.join(', ')}`));
+        });
+        console.log();
+    }
+    console.log(chalk.gray(`Total: ${platforms.length} platforms\n`));
+});
+program
+    .command('platforms:list [category]')
+    .description('List platforms by category (ai, social, dev, productivity, finance, shopping, email, other)')
+    .action((category) => {
+    const platforms = listPlatforms(category);
+    console.log(chalk.blue(`\n📊 ${category ? `${category.toUpperCase()} Platforms` : 'All Platforms'} (${platforms.length})\n`));
+    platforms.forEach(p => {
+        console.log(`  ${chalk.cyan(p.name)}`);
+        console.log(`    Aliases: ${p.aliases.join(', ')}`);
+        if (p.notes)
+            console.log(`    Notes: ${chalk.gray(p.notes)}`);
+        console.log();
+    });
+});
+program
+    .command('platforms:search <query>')
+    .description('Search for a platform')
+    .action((query) => {
+    const results = searchPlatforms(query);
+    if (results.length === 0) {
+        console.log(chalk.yellow(`\nNo platforms found matching "${query}"\n`));
+    }
+    else {
+        console.log(chalk.blue(`\n🔍 Found ${results.length} platform(s):\n`));
+        results.forEach(p => {
+            console.log(`  ${chalk.cyan(p.name)}`);
+            console.log(`    Login: ${chalk.gray(p.loginUrl)}`);
+            console.log(`    Aliases: ${p.aliases.join(', ')}`);
+            console.log();
+        });
+    }
+});
 // ─── Session ──────────────────────────────────────────────────────────────────
 program
     .command('login <platform>')
-    .description('Open visible browser to log in and save session (x, linkedin, reddit, gemini, etc.)')
-    .action(async (platform) => {
-    const platformUrls = {
-        x: 'https://x.com/login',
-        twitter: 'https://x.com/login',
-        linkedin: 'https://www.linkedin.com/login',
-        reddit: 'https://www.reddit.com/login',
-        bluesky: 'https://bsky.app',
-        gemini: 'https://gemini.google.com/',
-    };
-    // If platform is already a full URL, use it directly
-    const url = platform.startsWith('http://') || platform.startsWith('https://')
-        ? platform
-        : platformUrls[platform.toLowerCase()] ?? `https://${platform}`;
-    const { browser, context, page } = await ensureBrowser({ headed: true, platform });
+    .description('Open visible browser to log in and save session')
+    .action(async (platformQuery) => {
+    const platform = getPlatform(platformQuery);
+    const url = platformQuery.startsWith('http://') || platformQuery.startsWith('https://')
+        ? platformQuery
+        : platform?.loginUrl ?? `https://${platformQuery}`;
+    const { browser, context, page } = await ensureBrowser({ headed: true, platform: platformQuery });
     await page.goto(url, { waitUntil: 'domcontentloaded' });
-    console.log(chalk.cyan(`\n🔐 Log into ${platform} in the browser window.`));
+    const displayName = platform?.name || platformQuery;
+    console.log(chalk.cyan(`\n🔐 Log into ${displayName} in the browser window.`));
     console.log(chalk.gray('   Press Enter here when done.\n'));
     await new Promise(res => process.stdin.once('data', () => res()));
-    await saveSession(platform, context);
-    console.log(chalk.green(`✅ Session saved for ${platform}`));
+    await saveSession(platformQuery, context);
+    console.log(chalk.green(`✅ Session saved for ${displayName}`));
     await browser.close();
 });
 program
